@@ -145,7 +145,7 @@ Our model has a discrete time parameter $t \in [0, T] \subset \mathbb{N}$, with 
 For our simulation we choose one minute time resolution for $t$ ranging for $[0, 1440]$.
 However, the model could easily be re-parameterized to work with finer or coarser temporal quanta.
 
-Initially started out with a naive tick-based implementation, but as we gather data and finalized on our research question and goals of the project, we had decided to switch over to a retrospective model, allowing us to retroactively determine the passenger arrival rates between trains. For a more detailed description, see Algorithm \ref{Alg:main-loop} in the appendix.
+Initially started out with a naive tick-based implementation, but as we gathered data and finalized on our research question and goals of the project, we had decided to switch over to a retrospective model, allowing us to retroactively determine the passenger arrival rates between trains. For a more detailed description, see Algorithm \ref{Alg:main-loop} in the appendix.
 
 Our model specifies a ``rate of spread'' parameter $r$, representing the probability of transmitting the virus for each quantum of time that a passenger is within 1.7 meters of another passenger with the virus.
 The selection of this $r$ value in our simulation is set to $r=\frac{1}{15}$ based on U.S. CDC's guidelines. They label high-risk "Close Contact" with any individual to be anything more than the duration of 15 minutes. Using this as our mean time of transmission of the geometrically distributed "time until transmission" variable, the probability of success per minute was derived to be $0.0666$.
@@ -153,9 +153,9 @@ The selection of this $r$ value in our simulation is set to $r=\frac{1}{15}$ bas
 %a contact tracing and testing study conducted in Guangzhou, China \cite{guangzhou-study}. 
 
 Each passenger has a probability $c$ of entering the subway system with the virus.
-We call these passenger's ``initially contagious passengers.''
+We call these passengers ``initially contagious passengers.''
 We call a passenger who entered the subway system without the virus an ``initially non-contagious passenger''.
-When an initially non-contagious passenger has the virus transmitted to them, we call this event a ``novel transmission'' and we also call the passenger a ``contagious passenger'' (though not an \emph{initially} contagious passenger).
+When an initially non-contagious passenger has the virus transmitted to them, we call this event a ``novel transmission'' and we also call this passenger a ``contagious passenger'' (though not an \emph{initially} contagious passenger).
 
 The model output is the ratio of the total number of novel transmission events that occurred to the total number of initially non-contagious passengers.
 The output of the model is a random variable in the range $[0, 1]$.
@@ -199,7 +199,7 @@ We collected data on subway arrival rates at different times of the day.
 The MTA provided data\cite{arrival_rate} in six time intervals, \texttt{00:00} (midnight) to \texttt{04:00}, \texttt{04:00} to \texttt{08:00}, \texttt{08:00} to \texttt{12:00}, \texttt{12:00} to \texttt{16:00}, \texttt{16:00} to \texttt{20:00}, and \texttt{20:00} to \texttt{00:00}.
 For each interval of time, we model each station $S_i^q$ as having a homogeneous Poison process with intensity $\lambda_i(t)$ where $t$ is in the time interval.
 For example, given the time window \texttt{00:00} to \texttt{04:00}, and our one minute resolution of quanta for $t$, $S_i^q$ will have a homogeneous Poisson process with intensity $\lambda_i(t)$ for all $t \in [0, 240]$.
-For the specific weekday ridership of the station n, the sum of every turnstile which the number of passing passengers of the turnstile j on 4:00 AM minus the number of passing passengers of the turnstile j on 0:00 AM will be the number of passengers arriving at the station n from 0:00 AM to 4:00 AM on that specific weekday. So, we can get the average weekday ridership of the different time intervals(every 4 hours) of each station from the calculated weekdays ridership. Each arrival rate $\lambda_i(t)$ will be the average weekday ridership divided by 240(mins) based on the different time intervals. However, since some stations contain multiple lines, so we're not able to know which directions will the passengers take after they entering the station. Therefore, we simply divided the  $\lambda_i(t)$ by 2 to indicate 2 different directions, then if a station contains multiple lines, we'll keep dividing $\lambda_i(t)$ by the number of lines.
+For the specific weekday ridership of the station n, we can calculate the number of arrivals of passengers in one time interval by summing all of the new turnstiles entries in that station. For example, the number of passengers arriving at the station n from 0:00 AM to 4:00 AM on that specific weekday will be the number of entering passengers of the turnstile j on 4:00 AM minus the number of passing passengers of the turnstile j on 0:00 AM for all j turnstiles in that specific station. So, we can get the average weekday ridership of the different time intervals(every 4 hours) of each station from the calculated weekdays ridership. Each arrival rate $\lambda_i(t)$ will be the average weekday ridership divided by 240(mins) based on the different time intervals. However, since some stations contain multiple lines, we're not able to know which directions will the passengers take after they entering the station. Therefore, we make a simplifying assumption that the number of passengers entering a station will be evenly divided between the number of available subway lines and each nth portion of the number of passengers will take one of the n subway lines. For example, a station with 2 subway lines will have their $\lambda_i(t)$  divided the by 2 to indicate 2 different directions, then if a station contains multiple lines, we'll keep dividing $\lambda_i(t)$ by the number of lines.
 
 \subsection{Passengers}
 
@@ -373,7 +373,7 @@ For our study, we attempted two routes of variance reduction.
 
 First method was through the use of antithetic variables. The fundamental concept behind this method is to choose another independent, identical, and negatively correlated random variable compared to our target variable. This defines this pair of random variables to be "antithetic" where they will have negative covariance value between them. If we create a new random variable that represents the simple average of these pairs of variables, the mean of this new random variable with be an unbiased estimator of the mean of our target variable, but with a reduced variance.
 
-We were able to obtain the antithetic pair by running the second set of simulations with $1-U$ value instead of $U$ value for determining initial spawning of infected passengers ( where $U$ represents the uniformly distributed random variable value within the [0,1] ). In terms of the physical simulation, this translates into simulating 2 different sets of subway systems where the two differ only in the locations where the infected people spawn ( in the 2nd set, the people will spawn in an exact "opposite" configurations ). The data set acquired from average of these two simulation results will be one that is more centered and with less variance.
+We were able to obtain the antithetic pair by running the second set of simulations with $1-U$ value instead of $U$ value for determining initial spawning of infected passengers ( where $U$ represents the uniformly distributed random variable value within the [0,1] ). In terms of the physical simulation, this translates into simulating 2 different sets of subway systems where the two differ only in the locations where the infected people spawn ( in the 2nd set, the people will spawn in an exact "opposite" configurations ). The data set acquired from average of these two simulation results will be one that is more centered and that has less variance.
 
 Second method was through the selection of a control random variable, for which we already know the mean and variance of, and choose it in a way that it exhibits a high covariance value with our target random variable. We then define a new random variable $Z$ (difference variable) and calculate it using our target random variable and our control input variable, such that it subtracts the variance of the input control variable from the values of our target random variable, with a proportional constant of $c$.
 
@@ -382,11 +382,11 @@ where Y = target random variable and X = input control variable.
 
 From the above definition, it is evident that the expected value of $Z$ would be equal to the expected value of $X$.
 
-In regards to our specific study, the control variable was selected to be the amount of time an individual spends being in the over-packed subway car. It can be easily seen that this variable is correlated the our target variable as novel virus transmissions only occur in over-packed subway cars, and also this variable takes into account the time and the number of people within its definition, making it an optimal choice for our control variable.
+In regards to our specific study, the control variable was selected to be the amount of time an individual spends being in the over-packed subway car. It can be easily seen that this variable is correlated the our target variable as novel virus transmissions only occur in over-packed subway cars where social distancing is not fully observed, and also this variable takes into account the time and the number of people within its definition, making it an optimal choice for our control variable.
 
 \begin{figure}[h]
 	\centering
-	\includegraphics[scale=.51]{./figures/var-red-results.png}
+	\includegraphics[scale=.42]{./figures/var-red-results.png}
 	\caption{Variance Results for 6 different types of Simulation Runs \& Percent Reduction shown by 2 variance reduction methods}
 	\label{var-red-results}
 \end{figure}
@@ -471,6 +471,7 @@ For this intervention, we consider the MTA throttling the number of passengers w
 	\label{main-results}
 	\end{table}
 
+
 \begin{figure}[h]
 	\centering
 	\caption{Brooklyn Bound Results}
@@ -487,7 +488,7 @@ For this intervention, we consider the MTA throttling the number of passengers w
 
 \subsection {Output Analysis}
 
-When evaluating the quality multiple simulation methods, the relevant quantity is defined as $ \sigma^{2} \tau $ where $\sigma$ represents the variance and the $\tau$ represents the time it takes to run the simulation model.
+When evaluating the quality multiple simulation methods, the relevant quantity is defined as $ \sigma^{2} \tau $ where $\sigma^{2}$ represents the variance and the $\tau$ represents the time it takes to run the simulation model. The time of the Control Variable and the Original Simulation is nearly identical due to the control variable being an endogenous variable within our simulation model.
 
 Since we have 6 different types of simulation runs, the "Manhattan-bound-Control" was selected as it showed significant performance in both variance reduction techniques. We have the following results:
 
@@ -591,14 +592,8 @@ Furthermore, we can also expand our model by replicating the system to account f
 	\end{algorithmic}
 \end{algorithm}
 
+
 \clearpage
-
-\subsection*{Availability of data and materials}
-
-The datasets generated and analyzed in the study are available in the GitHub.com repository:
-
-\centerline{\url{https://github.com/recursion-ninja/subway-virus-transmission}}
-
 \begin{thebibliography}{00}
 
 \bibitem{Ross:2010} Ross. S.~ (2010) {\em Simulation}, Academic Press, NY.
