@@ -1,0 +1,25 @@
+Station,Manhattan bound station,Brooklyn bound station,Manhattan bound time,Brooklyn bound time,Arrival 00:00 - 04:00,Arrival 04:00 - 08:00,Arrival 08:00 - 12:00,Arrival 12:00 - 16:00,Arrival 16:00 - 20:00,Arrival 20:00 - 00:00,Departure 00:00 - 04:00,Departure 04:00 - 08:00,Departure 08:00 - 12:00,Departure 12:00 - 16:00,Departure 16:00 - 20:00,Departure 20:00 - 00:00
+Canarsie - Rockaway Pkwy,E 105 St,None,2,,0.87,16.35,16.39,6.12,4.61,1.32,7.68,7.68,7.68,7.68,7.68,7.68
+E 105 St,New Lots Av,Canarsie - Rockaway Pkwy,3,2,0.10,2.41,2.41,1.02,0.88,0.28,2.34,2.34,2.34,2.34,2.34,2.34
+New Lots Av,Livonia Av,E 105 St,1,3,0.21,3.55,3.55,1.21,1.01,0.37,2.89,2.89,2.89,2.89,2.89,2.89
+Livonia Av,Sutter Av,New Lots Av,1,1,0.08,2.05,2.05,0.93,0.89,0.21,1.97,1.97,1.97,1.97,1.97,1.97
+Sutter Av,Atlantic Av,Livonia Av,2,1,0.14,2.29,2.29,1.08,0.90,0.28,2.39,2.39,2.39,2.39,2.39,2.39
+Atlantic Av,Broadway Jct,Sutter Av,3,2,0.06,0.35,1.29,0.54,1.06,0.36,1.1,1.1,1.1,1.1,1.1,1.1
+Broadway Jct,Bushwick Av - Aberdeen St,Atlantic Av,1,3,0.07,0.93,0.93,0.65,0.64,0.26,5.43,5.43,5.43,5.43,5.43,5.43
+Bushwick Av - Aberdeen St,Wilson Av,Broadway Jct,2,1,0.03,1.04,1.04,1.50,0.83,0.24,1.4,1.4,1.4,1.4,1.4,1.4
+Wilson Av,Halsey St,Bushwick Av - Aberdeen St,2,2,0.07,1.86,1.86,3.04,1.30,0.45,2.98,2.98,2.98,2.98,2.98,2.98
+Halsey St,Myrtle - Wyckoff Avs,Wilson Av,2,2,0.11,3.69,3.69,4.66,2.05,0.74,5.13,5.13,5.13,5.13,5.13,5.13
+Myrtle - Wyckoff Avs,Dekalb Av,Halsey St,1,2,0.18,4.70,4.70,6.69,3.20,1.17,13.01,13.01,13.01,13.01,13.01,13.01
+Dekalb Av,Jefferson St,Myrtle - Wyckoff Avs,2,1,0.16,4.25,5.25,7.76,3.39,1.26,7.79,7.79,7.79,7.79,7.79,7.79
+Jefferson St,Morgan Av,Dekalb Av,2,2,0.25,2.40,2.40,5.00,3.69,1.49,5.01,5.01,5.01,5.01,5.01,5.01
+Morgan Av,Montrose Av,Jefferson St,2,2,0.16,1.67,1.67,4.89,4.11,1.43,4.82,4.82,4.82,4.82,4.82,4.82
+Montrose Av,Grand St,Morgan Av,1,2,0.16,1.88,1.88,5.35,3.16,1.15,4.52,4.52,4.52,4.52,4.52,4.52
+Grand St,Graham Av,Montrose Av,1,1,0.16,1.98,1.98,4.41,4.01,1.03,4.45,4.45,4.45,4.45,4.45,4.45
+Graham Av,Lorimer St,Grand St,1,1,0.14,2.38,2.38,8.96,3.89,1.51,6.49,6.49,6.49,6.49,6.49,6.49
+Lorimer St,Bedford Av,Graham Av,2,1,0.09,3.76,3.76,3.43,1.71,0.59,9.71,9.71,9.71,9.71,9.71,9.71
+Bedford Av,1 Av,Lorimer St,4,2,0.71,3.57,19.28,9.32,12.59,6.53,17.47,17.47,17.47,17.47,17.47,17.47
+1 Av,3 Av,Bedford Av,1,4,1.24,0.90,10.36,6.63,13.58,7.48,12.77,12.77,12.77,12.77,12.77,12.77
+3 Av,Union Sq - 14 St,1 Av,1,1,0.53,0.14,1.30,1.95,4.99,3.66,3.98,3.98,3.98,3.98,3.98,3.98
+Union Sq - 14 St,14 St - 6 Avenue,3 Av,2,1,0.21,2.16,3.62,7.14,10.32,3.47,70.72,70.72,70.72,70.72,70.72,70.72
+14 St - 6 Avenue,14 St - 8 Avenue,Union Sq - 14 St,1,2,0.49,1.77,3.69,2.40,5.14,2.25,32.2,32.2,32.2,32.2,32.2,32.2
+14 St - 8 Avenue,None,14 St - 6 Avenue,,1,0.57,3.65,6.32,11.92,16.74,5.88,30.81,30.81,30.81,30.81,30.81,30.81
