@@ -2,13 +2,7 @@
 
 This repository contains a simulation of virus transmission dynamics on a subway system. The NYC MTA's L-line and SARS-COVID-II are used as foci of the simulation's study.
 
-Authors:
-
- - Alex Washburn
- - Andrew Lee
- - Kamil Sachryn
- - ChuanYao Lin 
- - Ye Paing
+**Authors**: Alex Washburn, Andrew Lee, Kamil Sachryn, ChuanYao Lin, Ye Paing
 
 ### Installation
 
