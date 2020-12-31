@@ -125,7 +125,7 @@ class Station:
             self.passengerQueue.append(p)
 
     #returns passengersPerMin Passengers
-    def GeneratePassengers(self, minIndex, startTime, elapsingTime=1, antithetic=False):
+    def GeneratePassengers(self, startTime, elapsingTime=1, antithetic=False):
         # Exit early if the queue is full
         if self.maxQueueLength != None and len(self.passengerQueue) >= self.maxQueueLength:
             return 0
@@ -142,7 +142,6 @@ class Station:
                     overflow         = (endTime - windowClose)
                     arrivalIntensity = rate * (elapsingTime - overflow) + rate2 * overflow
         
-        passIndex   = minIndex
         passengers  = list()
         rv          = self.rng.poisson(arrivalIntensity)
         numArrivals = rv if self.maxQueueLength == None else min(self.maxQueueLength - len(self.passengerQueue), rv)
@@ -159,8 +158,7 @@ class Station:
             if rv < inboundVirusRate:
                 startsWithVirus = True
                 debug("VIRUS", self.stationName)
-            passengers.append(Passenger(passIndex, stationsUntilExit, startsWithVirus))
-            passIndex += 1
+            passengers.append(Passenger(stationsUntilExit, startsWithVirus))
 
         self.QueuePassengers(passengers)
         return numArrivals
@@ -168,10 +166,9 @@ class Station:
     
 class Train:
 
-    def __init__(self, uniqueID, carCount, startingStation : Station,  maximumCapacity, safeCapacity):
+    def __init__(self, uniqueID, carCount, maximumCapacity, safeCapacity):
         self.identifier        = uniqueID
         self.cars              = list()
-        self.station           = startingStation
         self.minsToNextStation = 0
 
         for i in range(carCount):
@@ -196,19 +193,6 @@ class Train:
     #tick mins
     def DecrementMinsToNextStation(self):
         self.minsToNextStation -= 1
-
-    #get index of station
-    def GetStationIndex(self):
-        return self.station.index
-
-    #return time to next station
-    def GetMinsToNextStation(self):
-        return self.minsToNextStation
-
-    #Set station and update time to next station
-    def SetStation(self, station):
-        self.minsToNextStation = self.station.timeToNextStation
-        self.station = station
 
     #Update everything
     def Tick(self, time=1):
@@ -520,7 +504,7 @@ class Car:
 
 
 class Passenger():
-    def __init__(self,index, stopsUntillDisembark, startWithVirus):
+    def __init__(self, stopsUntillDisembark, startWithVirus):
         self.stopsUntillDisembark  = stopsUntillDisembark
         self.hasVirus              = startWithVirus
         self.rideTime              = 0
@@ -529,13 +513,12 @@ class Passenger():
         self.startedWithVirus      = startWithVirus
         self.novelTransmissionTime = 0
         self.timeUntilTransmission = None
-        self.index = index
 
     def __str__(self):
-        return "index: {}, stops to go: {}, Virus: {}, ride time: {}, exposure time: {}".format(self.index,
-                                                                                        self.stopsUntillDisembark,
-                                                                                        self.hasVirus, self.rideTime,
-                                                                                        self.exposureTime)
+        return "stops to go: {}, Virus: {}, ride time: {}, exposure time: {}".format(self.stopsUntillDisembark,
+                                                                                     self.hasVirus,
+                                                                                     self.rideTime,
+                                                                                     self.exposureTime)
 
     def DecrementStops(self):
         self.stopsUntillDisembark -= 1
@@ -615,93 +598,18 @@ def debug(label, *argv):
     logging.debug(padded + ' '.join(map(str, list(argv))))
 
     
-def Simulation_DES(trainSchedule, subwayLine, carsPerTrain=8, carSafeCapacity=24, carMaxCapacity=258):
-
-    clock = 0
-    trainCounter   = 0
-    passengerIndex = 0
-    departedPassengers = list()
-    trainsEnroute = list()
-
-    # Run the simulation until there are no more trains scheduled to enter the line
-    # and all trains which have entered the line have also exited the line.
-    while trainSchedule or trainsEnroute:
-        debug("TICK", "(", clock, ")")
-
-        if trainSchedule and clock == trainSchedule[0]:
-            trainSchedule.pop(0)
-            trainCounter += 1
-            trainsEnroute.append(Train(trainCounter, 8, subwayLine[0], carMaxCapacity, carSafeCapacity))
-            debug("ADD", "(", clock,"):", trainCounter)
-
-        #Generate new passengers at every station in line except for the final station
-        for stationIndex in range(0, len(subwayLine) - 1):
-            passengerIndex += subwayLine[stationIndex].GeneratePassengers(passengerIndex, clock)
-
-        for train in trainsEnroute:
-
-            # Tick trains (updates new values for passengers)
-            train.Tick()
-
-            #if train has arrived at next station
-            if train.GetMinsToNextStation() <= 0:
-                debug("STATN", "(", clock, "):", train.identifier, train.station.stationName)
-
-                #Get passengers off trains who arrived at their stop, add to list for later
-                departingPassengers = train.ArriveAtStation()
-                for p in departingPassengers:
-                    departedPassengers.append(p)
-
-                #get passengers waiting to board train at station
-                passengersToLoad = subwayLine[train.GetStationIndex()].LoadPassengers()
-                for p in passengersToLoad:
-                    if train.AddPassenger(p): #if passenger was succesfully added
-                        passengersToLoad.remove(p)
-                    else: #train is full, exit loop
-                        break
-
-                #train.showTrain()
-                
-                #if train filled before station emptied, add passengers back into station queue
-                if len(passengersToLoad) > 0:
-                    subwayLine[train.GetStationIndex()].QueuePassengers(passengersToLoad)
-
-                #If we're at the final stop, remove the train
-                if train.GetStationIndex() == subwayLine[-1].index:
-                    debug("REMOV", "(", clock, "):", train.identifier)
-                    emptyCars = True
-                    for car in train.cars:
-                        emptyCars = car.GetOccupancy() == 0
-                    if not emptyCars:
-                        logging.error("Train not empty")
-                    trainsEnroute.remove(train)
-
-                #Otherwise Advance train to the next station it will arive at
-                else:
-                  train.minsToNextStation = train.station.timeToNextStation
-                  train.station = subwayLine[train.GetStationIndex() + 1]
-                
-            #Train is in transit.
-            train.DecrementMinsToNextStation()
-        clock += 1
-
-    return departedPassengers
-
-
 # Use a more efficient method following Prof. Vazquez-Abad's "Ghost Bus" model.
 def Simulation_Retrospective(trainSchedule, subwayLine, antithetic=False, carsPerTrain=8, carSafeCapacity=24, carMaxCapacity=258):
 
     clock              = 0
     trainIndex         = 0
-    passengerIndex     = 0
     departedPassengers = list()
     trainsEnroute      = list()
     #Initialize stations
     for i in range(len(subwayLine)):
         delta = subwayLine[i].timeToNextStation
         for j in range(i+1,len(subwayLine) - 1):
-            passengerIndex += subwayLine[j].GeneratePassengers(passengerIndex, clock, delta, antithetic)
-
+            subwayLine[j].GeneratePassengers(clock, delta, antithetic)
 
     while trainSchedule:
 
@@ -711,7 +619,7 @@ def Simulation_Retrospective(trainSchedule, subwayLine, antithetic=False, carsPe
 
         # Simulate passengers arriving at all stations for the elapsed time between trains
         for station in subwayLine[:-1]:
-            passengerIndex += station.GeneratePassengers(passengerIndex, clock, elapsed, antithetic)
+            station.GeneratePassengers(clock, elapsed, antithetic)
 
         # Advance the simulation clock to the arrival fo the next train
         clock += elapsed
@@ -719,13 +627,12 @@ def Simulation_Retrospective(trainSchedule, subwayLine, antithetic=False, carsPe
 
         # Create the next train
         trainIndex += 1
-        train = Train(trainIndex, 8, subwayLine[0], carMaxCapacity, carSafeCapacity)
+        train = Train(trainIndex, 8, carMaxCapacity, carSafeCapacity)
         debug("ADD", "(", clock,"):", trainIndex)
 
         # Move the train throught the subway line
         for station in subwayLine:
-            train.SetStation(station)
-            debug("STATN","(", clock, "):", train.identifier, train.station.stationName)
+            debug("STATN","(", clock, "):", train.identifier, station.stationName)
 
             #Get passengers off trains who arrived at their stop, add to list for later
             departingPassengers = train.ArriveAtStation()
