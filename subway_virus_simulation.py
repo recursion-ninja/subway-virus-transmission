@@ -163,7 +163,7 @@ class Station:
         self.QueuePassengers(passengers)
         return numArrivals
 
-    
+
 class Train:
 
     def __init__(self, uniqueID, carCount, maximumCapacity, safeCapacity):
@@ -1163,6 +1163,15 @@ def main():
                 print("Input error in command line option:\n ", sys.argv[i], "does not specify an integer")
                 os._exit(os.EX_DATAERR)
 
+    for i in range(len(largs)):
+        if largs[i].endswith('%'):
+            try:
+                inboundVirusRate = float(sys.argv[i][:-1]) / 100
+                break
+            except ValueError:
+                print("Input error in command line option:\n ", sys.argv[i], "does not specify an number")
+                os._exit(os.EX_DATAERR)
+
     outFile = None
     for i in range(len(largs)):
         arg = largs[i]
@@ -1176,8 +1185,8 @@ def main():
     
     logging.basicConfig(filename='subway.log', level=logLevel)
     debug("line", stationFile)
-    debug("scheduale", scheduleFile)
-    debug("parameters", iterations, direction, maxQueueLength, plotStats, timeSimulation, logLevel)
+    debug("schedule", scheduleFile)
+    debug("parameters", iterations, direction, inboundVirusRate, maxQueueLength, plotStats, timeSimulation, logLevel)
     
     output = replicateSimulation(subwayLine, trainSchedule, iterations, direction, plotStats, timeSimulation, antithetic)
 

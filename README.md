@@ -60,6 +60,10 @@ The program has the following *optional* command line arguments:
    - A flag specifying to record the generated target random variable outputs into a `output.csv` file. 
      The precence of `record` is interpreted as True and the abcense is interpreted as False.
 
+ - `<x%>` *Default* `1%`
+   - A flag specifying the number of passengers entering the simulation as contagious.
+     The number provided before the percent sign will be divided by 100.
+
 ### Example
 
 ```
