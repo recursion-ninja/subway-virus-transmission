@@ -1110,6 +1110,12 @@ def main():
         print("Missing required command line option:\n  TXT file of train schedule information")
         os._exit(os.EX_DATAERR)
 
+    logFile = "subway.log"
+    for i in range(len(largs)):
+        if largs[i].endswith('.log'):
+            logFile = sys.argv[i]
+            break
+
     record = False
     for i in range(len(largs)):
         if largs[i] == 'record':
@@ -1203,7 +1209,7 @@ def main():
     subwayLine    = parseSubwayLineFile(stationFile, direction, inboundVirusRate, maxQueueLength, randomSeed)
     trainSchedule = parseTrainScheduleFile(scheduleFile)
     
-    logging.basicConfig(filename='subway.log', level=logLevel)
+    logging.basicConfig(filename=logFile, level=logLevel)
     debug("line", stationFile)
     debug("schedule", scheduleFile)
     debug("parameters", iterations, direction, inboundVirusRate, maxQueueLength, randomSeed, plotStats, timeSimulation, logLevel)
