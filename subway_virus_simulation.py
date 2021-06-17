@@ -29,6 +29,7 @@ class Station:
         self.timeToNextStation   = timeToNextStation
         self.passengerQueue      = startingPassengerQueue
         self.maxQueueLength      = maxQueueLength
+        self.rebuffedPassengers  = 0
         self.futureDistributions = list()
         for (windowOpen, windowClose, dist) in futureDistributions:
             totalDist  = sum(dist)
@@ -55,6 +56,11 @@ class Station:
                                                                                     self.timeToNextStation,
                                                                                     self.futureDistribution)
 
+    def reset(self):
+        self.passengerQueue      = list()
+        self.rebuffedPassengers  = 0
+        
+    
     def getFutureDistribution(self, clock):
         for (windowOpen, windowClose, total, future) in self.futureDistributions:
             if windowOpen <= clock and clock < windowClose:
@@ -127,10 +133,6 @@ class Station:
 
     #returns passengersPerMin Passengers
     def GeneratePassengers(self, startTime, elapsingTime=1, antithetic=False):
-        # Exit early if the queue is full
-        if self.maxQueueLength != None and len(self.passengerQueue) >= self.maxQueueLength:
-            return 0
-
         endTime = startTime + elapsingTime
         arrivalIntensity = 0
         it = iter(self.arrivalRates)        
@@ -142,10 +144,12 @@ class Station:
                     (x, y, rate2)    = next(it)
                     overflow         = (endTime - windowClose)
                     arrivalIntensity = rate * (elapsingTime - overflow) + rate2 * overflow
-        
+
+        queueSpace  = sys.maxsize if self.maxQueueLength == None else self.maxQueueLength - len(self.passengerQueue)
         passengers  = list()
         rv          = self.rng.poisson(arrivalIntensity)
-        numArrivals = rv if self.maxQueueLength == None else min(self.maxQueueLength - len(self.passengerQueue), rv)
+        (numArrivals, rebuffed) = (min(queueSpace, rv), max(0, rv-queueSpace))
+        self.rebuffedPassengers += rebuffed
         for i in range(numArrivals):
             stationsUntilExit = self.getNextStation3(startTime)
             startsWithVirus = False
@@ -657,7 +661,10 @@ def Simulation_Retrospective(trainSchedule, subwayLine, antithetic=False, carsPe
             # Tick trains (updates new values for passengers)
             train.Tick(station.timeToNextStation)
 
-    return departedPassengers
+    rebuffedTally = 0
+    for station in subwayLine:
+        rebuffedTally += station.rebuffedPassengers
+    return (departedPassengers, rebuffedTally)
 
 
 def generateControlVariable(departedPassengers):
@@ -671,7 +678,7 @@ def generateControlVariable(departedPassengers):
 
     return totalOverpackedTime , totalRideTime 
 
-def generateStatistics(departedPassengers):
+def generateStatistics(departedPassengers, rebuffedTally):
     #Main loop ended, show data gathered.
     startVirusPassengers = 0
     novelVirusPassengers = 0
@@ -693,12 +700,14 @@ def generateStatistics(departedPassengers):
             safePassengers += 1
 
 
+    totalPassengers = startVirusPassengers + novelVirusPassengers + exposedPassengers + safePassengers
     simulationStatistics = ''.join([ '\nPassengers (Start Virus): ', str(startVirusPassengers)
                                    , '\nPassengers (Novel Virus): ', str(novelVirusPassengers)
                                    , '\nPassengers (Total Virus): ', str(startVirusPassengers + novelVirusPassengers)
                                    , '\nPassengers (Exposed    ): ', str(   exposedPassengers)
                                    , '\nPassengers (Safe       ): ', str(      safePassengers)
-                                   , '\nPassengers (Total      ): ', str(startVirusPassengers + novelVirusPassengers + exposedPassengers + safePassengers)
+                                   , '\nPassengers (Total      ): ', str(totalPassengers)
+                                   , '\nPassengers (Rebuffed   ): ', str(rebuffedTally), ' (' + str(round (100*(rebuffedTally / totalPassengers), 4)) + '%)'
                                    , '\n\nTransit  Time: ', str(totalRideTime)
                                    ,   '\nExposure Time: ', str(totalExposureTime)
                                    , '\n\nExpected exposure time (per passenger)', str(0 if len(departedPassengers) == 0 else totalExposureTime / len(departedPassengers))
@@ -859,21 +868,24 @@ def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", p
     print("Running", n, "simulations of the NYC MTA's", direction, "bound L-line")
 
     departeds = []
+    rebuffeds = []
     timings   = []
     progressLimit = 50
     for i in range(n):
         sys.stdout.write('.')
         sys.stdout.flush()
         tStart = time.time()
-        passengers = Simulation_Retrospective(trainSchedule.copy(), subwayLine.copy(), antithetic)
-#        passengers = Simulation_DES(trainSchedule.copy(), subwayLine.copy())
+        (passengers, rebuffed) = Simulation_Retrospective(trainSchedule.copy(), subwayLine.copy(), antithetic)
         tEnd   = time.time()
         if i % progressLimit == 0:
             sys.stdout.write('\b'*progressLimit + ' ' * progressLimit + '\b'*progressLimit)
             sys.stdout.flush()
         
         departeds.append(passengers)
+        rebuffeds.append(rebuffed)
         timings.append(tEnd - tStart)
+        for station in subwayLine:
+            station.reset()
 
     sys.stdout.write('\b'*progressLimit + ' ' * progressLimit + '\b'*progressLimit)
     
@@ -881,8 +893,8 @@ def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", p
 
     controlVarResults.clear()
 
-    for i in departeds:
-        generateStatistics(i)
+    for i,j in zip(departeds, rebuffeds):
+        generateStatistics(i,j)
         controlVarResults.append(generateControlVariable(i))
 
     # Get the simulation outcome
