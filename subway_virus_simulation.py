@@ -3,6 +3,7 @@ import logging
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+from   numpy.random import Generator, PCG64, SeedSequence
 import os
 import pandas
 from   scipy import stats
@@ -14,15 +15,15 @@ import csv
 
 # Global variables:
 transmissionRate = 1/15 # Chance of transmission per minute within 6ft of someone with the virus
-inboundVirusRate = 0.01 # Number of people entering the simulation with the virus
 controlVarResults = list() # Stores the result of Control Variable Values (SUM[amount of time passengers spent in overpacked car] / SUM[amount of total time passengers spent in a car] )
 controlVarResults.clear()
 
 class Station:
 
-    def __init__(self, index, stationName, arrivalRates, timeToNextStation, futureDistributions, maxQueueLength=None, startingPassengerQueue=None):
+    def __init__(self, index, stationName,  inboundVirusRate, randomGenerator, arrivalRates, timeToNextStation, futureDistributions, maxQueueLength=None, startingPassengerQueue=None):
         self.index = index
-        self.rng                 = next(requestFreshRNG())
+        self.inboundVirusRate    = inboundVirusRate
+        self.rng                 = randomGenerator
         self.arrivalRates        = arrivalRates
         self.stationName         = stationName
         self.timeToNextStation   = timeToNextStation
@@ -155,7 +156,7 @@ class Station:
             else:
                 rv = self.rng.uniform() 
             #################################### END OF EXPERIMENT #################################################
-            if rv < inboundVirusRate:
+            if rv < self.inboundVirusRate:
                 startsWithVirus = True
                 debug("VIRUS", self.stationName)
             passengers.append(Passenger(stationsUntilExit, startsWithVirus))
@@ -943,18 +944,6 @@ def nicelyRenderDecimal(value, characteristic=2, mantissa=5):
     return prefix + characteristicStr + '.' + mantissaStr + suffix 
 
 
-def requestFreshRNG():
-    bound  = 2**32 - 1
-    # Use the global RNG to get our origin seed
-    origin = np.random.randint(0, bound)
-    # Get a new RNG using our origin seed
-    rngGen = np.random.default_rng(origin)
-    # Use the RNG to seed an infinite stream of new RNGs!
-    while True:
-        seed = rngGen.integers(0, bound)
-        yield  np.random.default_rng(seed)
-
-
 def calculateRV(departedPassengers):
     N = len(departedPassengers)
     didNotStartWithVirus = 0
@@ -969,7 +958,7 @@ def calculateRV(departedPassengers):
     return novelTransmissions / didNotStartWithVirus
 
 
-def parseSubwayLineFile(subwayFile, direction, maxQueueLength):
+def parseSubwayLineFile(subwayFile, direction, inboundVirusRate, maxQueueLength, randomSeed):
     stations = pandas.read_csv(subwayFile)
     manhattanBound = direction == "Manhattan"
 
@@ -1029,6 +1018,11 @@ def parseSubwayLineFile(subwayFile, direction, maxQueueLength):
             
     index = 0
     subwayLine = list()
+    gens = list()
+    sg   = SeedSequence(randomSeed)
+    for s in sg.spawn(len(stationOrdering)):
+        gens.append(Generator(PCG64(s)))
+
     for i in range(len(stationOrdering)):
         k = stationOrdering[i]
         timeToNext = stations['Manhattan bound time'][k] if manhattanBound else stations['Brooklyn bound time'][k]
@@ -1047,7 +1041,7 @@ def parseSubwayLineFile(subwayFile, direction, maxQueueLength):
             departRates.sort()
             dists.append((begin, end, departRates))
 
-        subwayLine.append(Station(index, stations['Station'][k], arrivalRates, timeToNext, dists, maxQueueLength))
+        subwayLine.append(Station(index, stations['Station'][k], inboundVirusRate, gens[k], arrivalRates, timeToNext, dists, maxQueueLength))
         index += 1
 
     return subwayLine
@@ -1163,6 +1157,7 @@ def main():
                 print("Input error in command line option:\n ", sys.argv[i], "does not specify an integer")
                 os._exit(os.EX_DATAERR)
 
+    inboundVirusRate = 0.01
     for i in range(len(largs)):
         if largs[i].endswith('%'):
             try:
@@ -1170,6 +1165,19 @@ def main():
                 break
             except ValueError:
                 print("Input error in command line option:\n ", sys.argv[i], "does not specify an number")
+                os._exit(os.EX_DATAERR)
+
+    # Set random seed for reproducability
+    # Using the first 9 digits of π (pi)
+    # as a "nothing up our sleeve" choice.
+    randomSeed = 141592653
+    for i in range(len(largs)):
+        if largs[i].startswith('@'):
+            try:
+                randomSeed = int(sys.argv[i][1:])
+                break
+            except ValueError:
+                print("Input error in command line option:\n ", sys.argv[i], "does not specify an number for the random seed")
                 os._exit(os.EX_DATAERR)
 
     outFile = None
@@ -1180,13 +1188,13 @@ def main():
 
     print(sys.argv)
 
-    subwayLine    = parseSubwayLineFile(stationFile, direction, maxQueueLength)
+    subwayLine    = parseSubwayLineFile(stationFile, direction, inboundVirusRate, maxQueueLength, randomSeed)
     trainSchedule = parseTrainScheduleFile(scheduleFile)
     
     logging.basicConfig(filename='subway.log', level=logLevel)
     debug("line", stationFile)
     debug("schedule", scheduleFile)
-    debug("parameters", iterations, direction, inboundVirusRate, maxQueueLength, plotStats, timeSimulation, logLevel)
+    debug("parameters", iterations, direction, inboundVirusRate, maxQueueLength, randomSeed, plotStats, timeSimulation, logLevel)
     
     output = replicateSimulation(subwayLine, trainSchedule, iterations, direction, plotStats, timeSimulation, antithetic)
 
