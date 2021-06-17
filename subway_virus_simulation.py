@@ -856,28 +856,30 @@ def generatePlot(departeds, direction):
 
     plt.show()
 
-def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", plotStats=True, timeResults=True, antithetic=False):
+def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", plotStats=True, timeResults=True, antithetic=False, quiet=False):
     if direction.lower() != "brooklyn" and direction.lower() != "manhattan":
         print("Unrecognized direction! ", direction, "\nExpecting one of:\n  - Brooklyn\n  - Manhattan")
         return
 
-    print("\nCalculating the following expectation:")
-    print("╭╴                                                                                   ╶────╮")
-    print("│ A passenger without the virus will have the virus transmitted to them during their ride │")
-    print("╰────╴                                                                                   ╶╯")
-    print("Running", n, "simulations of the NYC MTA's", direction, "bound L-line")
+    if not quiet:
+        print("\nCalculating the following expectation:")
+        print("╭╴                                                                                   ╶────╮")
+        print("│ A passenger without the virus will have the virus transmitted to them during their ride │")
+        print("╰────╴                                                                                   ╶╯")
+        print("Running", n, "simulations of the NYC MTA's", direction, "bound L-line")
 
     departeds = []
     rebuffeds = []
     timings   = []
     progressLimit = 50
     for i in range(n):
-        sys.stdout.write('.')
-        sys.stdout.flush()
+        if not quiet:
+            sys.stdout.write('.')
+            sys.stdout.flush()
         tStart = time.time()
         (passengers, rebuffed) = Simulation_Retrospective(trainSchedule.copy(), subwayLine.copy(), antithetic)
         tEnd   = time.time()
-        if i % progressLimit == 0:
+        if not quiet and i % progressLimit == 0:
             sys.stdout.write('\b'*progressLimit + ' ' * progressLimit + '\b'*progressLimit)
             sys.stdout.flush()
         
@@ -888,8 +890,9 @@ def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", p
             station.reset()
 
     sys.stdout.write('\b'*progressLimit + ' ' * progressLimit + '\b'*progressLimit)
-    
-    print("Simulation complete!\n")
+
+    if not quiet:
+        print("Simulation complete!\n")
 
     controlVarResults.clear()
 
@@ -1175,6 +1178,12 @@ def main():
                 print("Input error in command line option:\n ", sys.argv[i], "does not specify an integer")
                 os._exit(os.EX_DATAERR)
 
+    quiet=False
+    for i in range(len(largs)):
+        arg = largs[i]
+        if arg.startswith('quiet='):
+            quiet = arg[6:] in ['true', '1', 't', 'y', 'yes']
+
     inboundVirusRate = 0.01
     for i in range(len(largs)):
         if largs[i].endswith('%'):
@@ -1204,8 +1213,6 @@ def main():
         if arg.startswith('output='):
             outFile = arg[7:]
 
-    print(sys.argv)
-
     subwayLine    = parseSubwayLineFile(stationFile, direction, inboundVirusRate, maxQueueLength, randomSeed)
     trainSchedule = parseTrainScheduleFile(scheduleFile)
     
@@ -1214,7 +1221,7 @@ def main():
     debug("schedule", scheduleFile)
     debug("parameters", iterations, direction, inboundVirusRate, maxQueueLength, randomSeed, plotStats, timeSimulation, logLevel)
     
-    output = replicateSimulation(subwayLine, trainSchedule, iterations, direction, plotStats, timeSimulation, antithetic)
+    output = replicateSimulation(subwayLine, trainSchedule, iterations, direction, plotStats, timeSimulation, antithetic, quiet)
 
     if (outFile != None):
         np.savetxt(outFile, np.asarray(output), delimiter=",")
