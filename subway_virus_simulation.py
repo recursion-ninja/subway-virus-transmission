@@ -428,86 +428,6 @@ class Car_Hex:
         self.virusSpaces = self.virusSpaces.union(newViralPassengers)
 
  
-class Car:
-
-    def __init__(self, maximumCapacity, safeCapacity):
-        self.maximumCapacity = maximumCapacity
-        self.safeCapacity = safeCapacity
-        self.spaces = list() # [[None for i in range(int(maximumCapacity/safeCapacity))] for j in range(safeCapacity)]
-        self.occupancy = 0
-
-        for i in range(safeCapacity):
-            self.spaces.append(list())
-
-    def __str__(self):
-        output = ""
-        for i in self.spaces:
-            output += str(i) + '\n'
-        return output
-
-    #Add 1 passenger to a safe zone, returns false if train car is at max capacity
-    def AddPassenger(self, passenger):
-        if self.occupancy >= self.maximumCapacity:
-            return False
-        bestSafeZone = self.__GetBestSafeZone()
-        if bestSafeZone == -1:
-            return False
-        else:
-            self.__AddPassengerToSafeZone(passenger, bestSafeZone)
-            self.occupancy += 1
-            return True
-
-    #Add passenger to safe zone at first available index
-    def __AddPassengerToSafeZone(self, passenger, index):
-        self.spaces[index].append(passenger)
-
-    def GetOccupancy(self):
-        return self.occupancy
-    
-    #Determines safezone with least people
-    def __GetBestSafeZone(self):
-        bestIndex = -1
-        bestPeeps = self.maximumCapacity + 1
-        for i in range(len(self.spaces)):
-            peeps = len(self.spaces[i])
-            if peeps < bestPeeps:
-                bestIndex = i
-                bestPeeps = peeps
-        return bestIndex
-
-    #make passengers depart if their stop counter is 0
-    def ArriveAtStation(self):
-        passengersDeparting : Passenger = list()
-        for i in range(len(self.spaces)):
-            departing, riding = [], []
-            for passenger in self.spaces[i]:
-                passenger.DecrementStops()
-                (departing if passenger.GetStopsUntilDisembark() <= 0 else riding).append(passenger)
-            self.spaces[i] = riding
-            passengersDeparting += departing
-            self.occupancy -= len(departing)
-        return passengersDeparting
-
-    #Do everything needed every minute
-    #Incremenets passengers vars
-    def Tick(self, time=1):
-        if time < 1:
-            return
-        for i in range(len(self.spaces)):
-            numberWithVirus = 0
-            for passenger in self.spaces[i]:
-                if passenger.HasVirus():
-                    numberWithVirus += 1
-            for passenger in self.spaces[i]:
-                passenger.IncrementRideTime(time)
-                if numberWithVirus > 0:
-                    if not passenger.HasVirus():
-                        passenger.AddExposureTime( numberWithVirus    * time)
-                    else:
-                        passenger.AddExposureTime((numberWithVirus-1) * time)
-
-
-
 class Passenger():
     def __init__(self, stopsUntillDisembark, startWithVirus):
         self.stopsUntillDisembark  = stopsUntillDisembark
@@ -1082,12 +1002,7 @@ def parseTimestamp(timestamp):
     return hours*60 + minutes    
 
 
-def main():
-
-    # Set random seed for reproducability
-    # Using the first 9 digits of ϕ (phi)
-    # as a "nothing up our sleeve" choice.
-    np.random.seed(618033988)
+def parseCommandLineArguments():
 
     largs = list()
     for arg in sys.argv:
@@ -1213,6 +1128,21 @@ def main():
         if arg.startswith('output='):
             outFile = arg[7:]
 
+    return (stationFile, scheduleFile, logFile, outFile, record, antithetic, direction, iterations, plotStats, logLevel, timeSimulation, maxQueueLength, quiet, inboundVirusRate, randomSeed)
+
+
+def main():
+    (stationFile, scheduleFile, logFile, outFile, record, antithetic, direction, iterations, plotStats, logLevel, timeSimulation, maxQueueLength, quiet, inboundVirusRate, randomSeed) = parseCommandLineArguments()
+
+    # Set global random seed for reproducability
+    # Using the first 9 digits of ϕ (phi) as a
+    # "nothing up our sleeve" choice ffor the salt.
+    #
+    # The salt is XORed with the user supplied seed
+    # so the results are fully reproducible by a
+    # user supplied parameter.
+    np.random.seed(618033988 ^ randomSeed)
+
     subwayLine    = parseSubwayLineFile(stationFile, direction, inboundVirusRate, maxQueueLength, randomSeed)
     trainSchedule = parseTrainScheduleFile(scheduleFile)
     
@@ -1225,7 +1155,7 @@ def main():
 
     if (outFile != None):
         np.savetxt(outFile, np.asarray(output), delimiter=",")
-    
+
     return output, controlVarResults
 
 
