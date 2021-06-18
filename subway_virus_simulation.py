@@ -1,3 +1,5 @@
+import csv
+from   collections import Counter
 import itertools
 import logging
 import math
@@ -7,14 +9,14 @@ from   numpy.random import Generator, PCG64, SeedSequence
 import os
 import pandas
 from   scipy import stats
+import subprocess
 import sys
 import time
-import subprocess
-import csv
 
 
 # Global variables:
-transmissionRate = 1/15 # Chance of transmission per minute within 6ft of someone with the virus
+transmissionMean = 15
+transmissionRate = 1/transmissionMean # Chance of transmission per minute within 6ft of someone with the virus
 controlVarResults = list() # Stores the result of Control Variable Values (SUM[amount of time passengers spent in overpacked car] / SUM[amount of total time passengers spent in a car] )
 controlVarResults.clear()
 
@@ -383,49 +385,48 @@ class Car_Hex:
         if time < 1:
             return
 
-        # First, increment all passenger ride times
+        elapsedTime = 0
+        while True:
+            # Non-contagious proximal to one or more contagious passengers.
+            # The counter of each passenegr index, accounts for the number of proximal contagious sources.
+            vulnerablePassengers = Counter()
+            # All passengers proximal to one or more contagious passenegrs.
+            # NOTE: Contains contagious passenegrs
+            exposedPassengers = set()
+            for c in self.virusSpaces:
+                exposureRange = set(self.__GetSocialDistanceRange(c[0],c[1]))
+                exposed       = exposureRange.intersection(self.occupiedSpaces)
+                vulerable     = [x for x in exposed if not self.spaces[x].HasVirus()]
+                vulnerablePassengers += Counter(vulerable)
+                exposedPassengers.union(exposed)
+
+            bigK    = sum(vulnerablePassengers.values())
+            if bigK <= 0:
+                #There are no vulnerable passengers
+                break
+            
+            littleV = bigK / transmissionMean
+            rv      = np.random.exponential(littleV)
+            deltaT  = min(elapsedTime + rv, time) # don't allow δt to exceed the total time between stations
+            elapsedTime += deltaT
+
+            for e in exposedPassengers:
+                self.spaces[e].AddExposureTime(deltaT)
+
+            if elapsedTime >= time:
+                break
+
+            passengerI = np.random.randint(bigK)
+            selectedPassenger = list(vulnerablePassengers.elements())[passengerI]
+            self.spaces[selectedPassenger].BecomeContagious(elapsedTime)
+            self.virusSpaces.add(selectedPassenger)
+
+        # Lastly, increment all passenger ride times
         for e in self.occupiedSpaces:
             self.spaces[e].IncrementRideTime(time)
             # Increment the time passenger spent being inside an overpacked car
             if self.GetOccupancy() > len(self.safeSpaces):
                 self.spaces[e].IncrementOverpackedTime(time)
-
-        # Every passenger which has the virus transmitted to them during the time interval.
-        newViralPassengers = set()
-        viralExposureTasks = list(zip(self.virusSpaces, itertools.count(time,0)))
-
-        # Second, handle virus exposure and transmission
-        while viralExposureTasks:
-            currentTasks       = viralExposureTasks
-            viralExposureTasks = list()
-
-            # For all the tasks we knew about at the start of the loop,
-            # Process each task.
-            # Each task processed may add one or more tasks.
-            for (v,t) in currentTasks:
-                # Get all the cells within the social distancing radius
-                for e in self.__GetSocialDistanceRange(v[0],v[1]):
-                    if e in self.occupiedSpaces:
-                        passenger = self.spaces[e]
-                        # If there is a passenger with the radius,
-                        # Increase the passenger's exposure time appropriately
-                        extraTime = passenger.AddExposureTime(t)
-                        # If there was not a negative number of minutes
-                        # exceeding the passenger's time until transmission
-                        # then the passenger has had the virus transmitted to them
-                        # and we must add their indicies to the list of virus passengers.
-                        if extraTime >= 0:
-                            newViralPassengers.add(e)
-                        # If the passenger had a *positive* number of minutes
-                        # exceeding their time until transmission,
-                        # then they will expose surrounding passengers
-                        # for the duration of the excess time.
-                        # We add this passenger as a new task to handle
-                        # during the next main loop of the function.
-                        if extraTime >  0:
-                            viralExposureTasks.append((e,t))
-
-        self.virusSpaces = self.virusSpaces.union(newViralPassengers)
 
  
 class Passenger():
@@ -437,7 +438,6 @@ class Passenger():
         self.overpackedTime        = 0
         self.startedWithVirus      = startWithVirus
         self.novelTransmissionTime = 0
-        self.timeUntilTransmission = None
 
     def __str__(self):
         return "stops to go: {}, Virus: {}, ride time: {}, exposure time: {}".format(self.stopsUntillDisembark,
@@ -467,37 +467,16 @@ class Passenger():
     def IncrementOverpackedTime(self, minutes):
         self.overpackedTime += minutes
 
+    def BecomeContagious(self, minutes):
+        debug("TRANS")
+        self.novelTransmissionTime = self.exposureTime
+        self.hasVirus = True
+        
     # Adds exposure time to passenger
     def AddExposureTime(self, minutes):
         # It doesn't matter if you already have the virus,
         # We track the total exposure time of *ALL* passengers
         self.exposureTime += minutes
-
-        # But if you already have the virus, we don't need to worry about the rest.
-        if self.hasVirus:
-            return -1
-
-        # Lazily sample the geometric distribution *only*
-        # the first time the passenger is exposed to the virus.
-        # Save some work since most passenegrs are never exposed,
-        # and sampling the geometric distribution is expensive.
-        if self.timeUntilTransmission == None:
-            self.timeUntilTransmission = np.random.geometric(p=transmissionRate)
-
-        # Calculate how many minutes are "left over"
-        # after having the virus transmitted to the passenger.
-        # A negative number represents that transmission has not yet occured.
-        exceededTime = self.exposureTime - self.timeUntilTransmission
-        if exceededTime >= 0:
-            debug("TRANS")
-            self.hasVirus = True
-            # TODO remove this
-            self.novelTransmissionTime = self.rideTime
-
-        # Return the number of "left over" minutes after transmission occured.
-        # We need to make sure to calculate other passenger's exposure
-        # for this duration of time if the value is positive.
-        return exceededTime
 
     def IncrementRideTime(self, time=1):
         self.rideTime += time
@@ -511,7 +490,7 @@ class Passenger():
     # Number of minutes that the passenger was exposed
     # until the virus was transmitted to them
     def GetNovelTransmissionTime(self):
-        return self.timeUntilTransmission
+        return self.novelTransmissionTime
 
 
 def debug(label, *argv):
