@@ -1,3 +1,4 @@
+Iterations,Direction,Frequency,Cars per train,Station limit,Inbound contagious,Output mean,Output lower 95%,Output upper 95%,Timing mean,Timing lower 95%,Timing upper 95%,Rebuffed mean,Rebuffed lower 95%,Rebuffed upper 95%
 1000,Brooklyn bound,Normal,8,∞,0.010,0.00447,0.00421,0.00473,1.47736,1.46584,1.48887,0.00000,0.00000,0.00000
 1000,Brooklyn bound,Normal,9,∞,0.010,0.00170,0.00155,0.00186,1.49913,1.48735,1.51091,0.00000,0.00000,0.00000
 1000,Brooklyn bound,Normal,10,∞,0.010,0.00065,0.00057,0.00073,1.47251,1.46028,1.48474,0.00000,0.00000,0.00000

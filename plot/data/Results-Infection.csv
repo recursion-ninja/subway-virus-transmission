@@ -1,4 +1,4 @@
-﻿Iterations,Direction,Schedule,Station Limit,Incoming Contagious,Risk Metric,95% Lower Interval,95% Upper Interval
+﻿Iterations,Direction,Frequency,Station limit,Inbound contagious,Output mean,Output lower 95%,Output upper 95%
 1000,Brooklyn bound,Normal,∞,0.01,0.00447,0.00421,0.00473
 1000,Brooklyn bound,Normal,∞,0.02,0.00816,0.00773,0.00860
 1000,Brooklyn bound,Normal,∞,0.03,0.01131,0.01075,0.01188
