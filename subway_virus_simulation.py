@@ -1193,7 +1193,7 @@ def main():
                               , "Normal" if scheduleFile.endswith("X.txt") else scheduleFile[-6:-4] + " to rush hour"
                               , str(carCount)
                               , "∞" if maxQueueLength == None else str(maxQueueLength)
-                              , nicelyRenderDecimal(inboundVirusRate, 1, 3)
+                              , nicelyRenderDecimal(inboundVirusRate, 1, 2)
                               , nicelyRenderDecimal(    outcomeMean , 1, 5)
                               , nicelyRenderDecimal(    outcomeLower, 1, 5)
                               , nicelyRenderDecimal(    outcomeUpper, 1, 5)
