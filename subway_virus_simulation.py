@@ -552,7 +552,7 @@ def Simulation_Retrospective(trainSchedule, subwayLine, antithetic=False, carsPe
 
         # Create the next train
         trainIndex += 1
-        train = Train(trainIndex, 8, carMaxCapacity, carSafeCapacity)
+        train = Train(trainIndex, carsPerTrain, carMaxCapacity, carSafeCapacity)
         debug("ADD", "(", clock,"):", trainIndex)
 
         # Move the train throught the subway line
@@ -776,7 +776,7 @@ def generatePlot(departeds, direction):
 
     plt.show()
 
-def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", plotStats=True, timeResults=True, antithetic=False, quiet=False):
+def replicateSimulation(subwayLine, trainSchedule, carCount=8, n=10, direction="Brooklyn", plotStats=True, timeResults=True, antithetic=False, quiet=False):
     if direction.lower() != "brooklyn" and direction.lower() != "manhattan":
         print("Unrecognized direction! ", direction, "\nExpecting one of:\n  - Brooklyn\n  - Manhattan")
         return
@@ -797,7 +797,7 @@ def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", p
             sys.stdout.write('.')
             sys.stdout.flush()
         tStart = time.time()
-        (passengers, rebuffed) = Simulation_Retrospective(trainSchedule.copy(), subwayLine.copy(), antithetic)
+        (passengers, rebuffed) = Simulation_Retrospective(trainSchedule.copy(), subwayLine.copy(), antithetic, carsPerTrain=carCount)
         tEnd   = time.time()
         if not quiet and i % progressLimit == 0:
             sys.stdout.write('\b'*progressLimit + ' ' * progressLimit + '\b'*progressLimit)
@@ -833,24 +833,22 @@ def replicateSimulation(subwayLine, trainSchedule, n=10, direction="Brooklyn", p
         timingStr = confidenceIntervalString(timings, 's')
         print("Runtime:", timingStr)
 
-    if plotStats:
+    if plotStats and not quiet:
         generatePlot(departeds, direction)
 
-    return outcomes
+    rebuffings = []
+    for i in range(len(departeds)):
+        rebuffings.append(rebuffeds[i] / (rebuffeds[i] + len(departeds[i])))
+
+    return (outcomes, timings, rebuffings)
 
 
-def confidenceIntervalString(observations, unit='', confidence=95):
-    # Define some constants required for pretty rendering
-    unitCharaters  = 2
-    unitTruncated  = unit[:unitCharaters]
-    u              = unitTruncated + (' ' * (unitCharaters - len(unitTruncated)))
-
+def confidenceInterval(observations, unit='', confidence=95):
     # Calculate the mean of the observations
     mean           = sum(observations) / len(observations)
     
     # If there's only one run of the simulation,
     # then there is no confidence interval for the mean runtime result
-    confidenceStr  = ""
     n              = len(observations)
     if n > 1:
         totalDeviations = 0
@@ -860,17 +858,29 @@ def confidenceIntervalString(observations, unit='', confidence=95):
         s = math.sqrt(totalDeviations / (n - 1))
         t = stats.t.ppf(1 - ((100-confidence)/2/100), n - 1)
         v = (t*s) / math.sqrt(n)
-        plusMinus  = nicelyRenderDecimal(              v )
-        lowerBound = nicelyRenderDecimal(max(0, mean - v))
-        upperBound = nicelyRenderDecimal(       mean + v )
-        confidenceStr = " ± " + plusMinus + " (" + lowerBound + u + ", " + upperBound + u + ") 95%"
+
+    # Return a pretty rendering of the mean and confidence interval of the observations
+    return (mean, v, max(0, mean - v), mean + v)
+
+def confidenceIntervalString(observations, unit='', confidence=95):
+    unitCharaters  = 2
+    unitTruncated  = unit[:unitCharaters]
+    u              = unitTruncated + (' ' * (unitCharaters - len(unitTruncated)))
+    (mean, variance, lowerBound, upperBound) = confidenceInterval(observations, confidence)
+
+    # If there's only one run of the simulation,
+    # then there is no confidence interval for the mean runtime result
+    plusMinusStr  = nicelyRenderDecimal(variance)
+    lowerBoundStr = nicelyRenderDecimal(lowerBound)
+    upperBoundStr = nicelyRenderDecimal(upperBound)
+    confidenceStr = " ± " + plusMinusStr + " (" + lowerBoundStr + u + ", " + upperBoundStr + u + ") 95%"
 
     # Return a pretty rendering of the mean and confidence interval of the observations
     return nicelyRenderDecimal(mean) + u + confidenceStr
 
 
 def nicelyRenderDecimal(value, characteristic=2, mantissa=5):
-    roundedStr        = str(round(value, mantissa))
+    roundedStr        = ("{:"+str(characteristic+mantissa+1)+"."+str(mantissa)+"f}").format(value)
     x                 = roundedStr.split('.', 1)
     characteristicStr = x[0]
     mantissaStr       = x[1] if len(x) > 1 else ""
@@ -880,7 +890,6 @@ def nicelyRenderDecimal(value, characteristic=2, mantissa=5):
 
 
 def calculateRV(departedPassengers):
-    N = len(departedPassengers)
     didNotStartWithVirus = 0
     novelTransmissions   = 0
     
@@ -1010,7 +1019,7 @@ def parseCommandLineArguments():
 
     stationFile = None
     for i in range(len(largs)):
-        if largs[i].endswith('.csv'):
+        if largs[i].endswith('.csv') and not largs[i].startswith("append="):
             stationFile = sys.argv[i]
             break
 
@@ -1128,11 +1137,31 @@ def parseCommandLineArguments():
         if arg.startswith('output='):
             outFile = arg[7:]
 
-    return (stationFile, scheduleFile, logFile, outFile, record, antithetic, direction, iterations, plotStats, logLevel, timeSimulation, maxQueueLength, quiet, inboundVirusRate, randomSeed)
+    csvAppendFile = None
+    for i in range(len(largs)):
+        arg = largs[i]
+        if arg.startswith('append='):
+            csvAppendFile = arg[7:]
+
+    carCount = 8
+    for i in range(len(largs)):
+        arg = largs[i]
+        if arg.startswith('cars='):
+            carArg = arg[5:]
+            if carArg.isdigit():
+                carCount = int(carArg)
+                carCount = 8 if carCount < 1 else carCount
+                break
+            else:
+                print("Input error in command line option:\n ", sys.argv[i], "does not specify an integer")
+                os._exit(os.EX_DATAERR)
+    
+
+    return (stationFile, scheduleFile, logFile, outFile, csvAppendFile, record, antithetic, direction, iterations, plotStats, logLevel, timeSimulation, maxQueueLength, quiet, inboundVirusRate, carCount, randomSeed)
 
 
 def main():
-    (stationFile, scheduleFile, logFile, outFile, record, antithetic, direction, iterations, plotStats, logLevel, timeSimulation, maxQueueLength, quiet, inboundVirusRate, randomSeed) = parseCommandLineArguments()
+    (stationFile, scheduleFile, logFile, outFile, csvAppendFile, record, antithetic, direction, iterations, plotStats, logLevel, timeSimulation, maxQueueLength, quiet, inboundVirusRate, carCount, randomSeed) = parseCommandLineArguments()
 
     # Set global random seed for reproducability
     # Using the first 9 digits of ϕ (phi) as a
@@ -1151,13 +1180,55 @@ def main():
     debug("schedule", scheduleFile)
     debug("parameters", iterations, direction, inboundVirusRate, maxQueueLength, randomSeed, plotStats, timeSimulation, logLevel)
     
-    output = replicateSimulation(subwayLine, trainSchedule, iterations, direction, plotStats, timeSimulation, antithetic, quiet)
+    (outcomes, timings, rebuffings) = replicateSimulation(subwayLine, trainSchedule, carCount, iterations, direction, plotStats, timeSimulation, antithetic, quiet)
 
-    if (outFile != None):
+    if outFile != None:
         np.savetxt(outFile, np.asarray(output), delimiter=",")
+    
+    if csvAppendFile != None:
+        with open(csvAppendFile, 'a+') as csvFile:
+            if os.path.getsize(csvAppendFile) == 0:
+                headerRow = ",".join([ "Iterations"
+                                    , "Direction"
+                                    , "Frequency"
+                                    , "Cars per train"
+                                    , "Station limit"
+                                    , "Inbound contagious"
+                                    , "Output mean"
+                                    , "Output lower 95%"
+                                    , "Output upper 95%"
+                                    , "Timing mean"
+                                    , "Timing lower 95%"
+                                    , "Timing upper 95%"
+                                    , "Rebuffed mean"
+                                    , "Rebuffed lower 95%"
+                                    , "Rebuffed upper 95%"
+                                    ])
+                csvFile.write(headerRow + "\n")
+                
+            ( outcomeMean,  outcomeVariance,  outcomeLower,  outcomeUpper) = confidenceInterval(outcomes)
+            (  timingMean,   timingVariance,   timingLower,   timingUpper) = confidenceInterval(timings)
+            (rebuffedMean, rebuffedVariance, rebuffedLower, rebuffedUpper) = confidenceInterval(rebuffings)
+            csvLine = ",".join([ str(iterations)
+                              , direction + " bound"
+                              , "Normal" if scheduleFile.endswith("X.txt") else scheduleFile[-6:-4] + " to rush hour"
+                              , str(carCount)
+                              , "∞" if maxQueueLength == None else str(maxQueueLength)
+                              , nicelyRenderDecimal(inboundVirusRate, 1, 3)
+                              , nicelyRenderDecimal(    outcomeMean , 1, 5)
+                              , nicelyRenderDecimal(    outcomeLower, 1, 5)
+                              , nicelyRenderDecimal(    outcomeUpper, 1, 5)
+                              , nicelyRenderDecimal(     timingMean , 1, 5)
+                              , nicelyRenderDecimal(     timingLower, 1, 5)
+                              , nicelyRenderDecimal(     timingUpper, 1, 5)
+                              , nicelyRenderDecimal(   rebuffedMean , 1, 5)
+                              , nicelyRenderDecimal(   rebuffedLower, 1, 5)
+                              , nicelyRenderDecimal(   rebuffedUpper, 1, 5)
+                              ])
+            csvFile.write(csvLine + "\n")
+            csvFile.close()
 
-    return output, controlVarResults
-
+    return outcomes, controlVarResults
 
 if __name__ == "__main__":
     main()
