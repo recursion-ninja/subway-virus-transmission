@@ -627,7 +627,7 @@ def generateStatistics(departedPassengers, rebuffedTally):
                                    , '\nPassengers (Exposed    ): ', str(   exposedPassengers)
                                    , '\nPassengers (Safe       ): ', str(      safePassengers)
                                    , '\nPassengers (Total      ): ', str(totalPassengers)
-                                   , '\nPassengers (Rebuffed   ): ', str(rebuffedTally), ' (' + str(round (100*(rebuffedTally / totalPassengers), 4)) + '%)'
+                                   , '\nPassengers (Rebuffed   ): ', str(rebuffedTally), ' (' + str(round (100*(rebuffedTally / (rebuffedTally + totalPassengers)), 4)) + '%)'
                                    , '\n\nTransit  Time: ', str(totalRideTime)
                                    ,   '\nExposure Time: ', str(totalExposureTime)
                                    , '\n\nExpected exposure time (per passenger)', str(0 if len(departedPassengers) == 0 else totalExposureTime / len(departedPassengers))
