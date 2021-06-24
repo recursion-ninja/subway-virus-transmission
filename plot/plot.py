@@ -1,43 +1,218 @@
 import csv
+import pprint
 import matplotlib.pyplot as plt 
 import numpy as np 
 
-# File to plot CSV data in the ./data folder.
+# Setting up plotting data array and plotter
+plotting_data = []
 
-# './data/Results-Infection.csv'
-# ['1000', 'Brooklyn bound', 'Normal', '∞', '0.01', '0.00447', '0.00421', '0.00473']
-# ['1000', 'Brooklyn bound', 'Normal', '∞', '0.02', '0.00816', '0.00773', '0.00860']
-# ['1000', 'Brooklyn bound', 'Normal', '∞', '0.03', '0.01131', '0.01075', '0.01188']
-# ['1000', 'Brooklyn bound', 'Normal', '∞', '0.04', '0.01399', '0.01331', '0.01468']
-# ['1000', 'Brooklyn bound', 'Normal', '∞', '0.05', '0.01625', '0.01548', '0.01701']
-# ['1000', 'Manhattan bound', 'Normal', '∞', '0.01', '0.06177', '0.06104', '0.06249']
-# ['1000', 'Manhattan bound', 'Normal', '∞', '0.02', '0.09458', '0.09382', '0.09534']
-# ['1000', 'Manhattan bound', 'Normal', '∞', '0.03', '0.11418', '0.11339', '0.11496']
-# ['1000', 'Manhattan bound', 'Normal', '∞', '0.04', '0.12594', '0.12511', '0.12677']
-# ['1000', 'Manhattan bound', 'Normal', '∞', '0.05', '0.13368', '0.13282', '0.13455']
+with open('./data/Results-Infection.csv') as f:
+    csv_reader = csv.reader(f, delimiter=',')
+    header = next(csv_reader)
+    data = list(csv_reader)
 
-# with open('./data/Results-Station-Limit.csv')
-# with open('./data/Results-Infection.csv') as f:
-# 	csv_reader = csv.reader(f, delimiter=',')
-# 	for row in csv_reader:
-# 		print(row)
+    direction = data[0][1]
+
+    inbound_contagious_data = []
+    output = []
+    output_upper = []
+    output_lower = []
+
+    for row in data:
+        # New set of direction, push current direction data into plotting data
+        # print(f'{direction} - {row[1]}')
+        if direction != row[1]:
+            plotting_data.append({
+                'direction': direction,
+                'data': {
+                    'contagious_data': inbound_contagious_data,
+                    'output': output,
+                    'output_upper': output_upper,
+                    'output_lower': output_lower
+                }
+            })
+            direction = row[1]
+            inbound_contagious_data = []
+            output = []
+            output_upper = []
+            output_lower = []
+
+        inbound_contagious_data.append(float(row[4]))
+        output.append(float(row[5]))
+        output_upper.append(float(row[6]))
+        output_lower.append(float(row[7]))
 
 
-y = [0.00447, 0.00816, 0.01131, 0.01399, 0.01625]
-y_lower = [0.00421, 0.00773, 0.01075, 0.01331, 0.01548]
-y_upper = [0.00473, 0.00860, 0.01188, 0.01468, 0.01701]
-x = [0.01, 0.02, 0.03, 0.04, 0.05]
+    plotting_data.append({
+        'direction': direction,
+        'data': {
+            'contagious_data': inbound_contagious_data,
+            'output': output,
+            'output_upper': output_upper,
+            'output_lower': output_lower
+        }
+    })
 
 
-fig, ax = plt.subplots()
+for d in plotting_data:
+    plt.title(d['direction'])
+    x = d['data']['contagious_data']
+    y = d['data']['output']
+    y_lower = d['data']['output_lower']
+    y_upper = d['data']['output_upper']
+    plt.ylabel('Risk Metrics')
+    plt.xlabel('Incoming Contagious')
 
-ax.set_title('Brooklyn Bound')
-ax.set_ylabel('Risk Metrics')
-ax.set_xlabel('Incoming Contagious')
-plt.plot(x,y, marker='x')
-plt.scatter(x,y_upper, marker='_')
-plt.scatter(x,y_lower, marker='_')
-plt.xticks(np.arange(min(x), max(x)+0.01, 0.01))
-plt.yticks(np.arange(min(y_lower), max(y), 0.0015))
+    plt.plot(x,y, marker='x')
+    plt.scatter(x,y_upper, marker='_')
+    plt.scatter(x,y_lower, marker='_')
+    plt.xticks(np.arange(min(x), max(x), 0.01)) # TODO: Determine X/Y Ticks for both directions
+    plt.yticks(np.arange(min(y_lower), max(y), 0.0015))
 
-plt.show()
+    plt.show()
+
+
+#
+# Plot 2nd file
+#
+
+plotting_data = []
+
+with open('./data/Results-Station-Limit.csv') as f:
+    csv_reader = csv.reader(f, delimiter=',')
+    header = next(csv_reader)
+    data = list(csv_reader)
+
+    direction = data[0][1]
+
+    station_limit = []
+    output = []
+    output_upper = []
+    output_lower = []
+
+    for row in data:
+        # New set of direction, push current direction data into plotting data
+        # print(f'{direction} - {row[1]}')
+        if direction != row[1]:
+            plotting_data.append({
+                'direction': direction,
+                'data': {
+                    'station_limit': station_limit,
+                    'output': output,
+                    'output_upper': output_upper,
+                    'output_lower': output_lower
+                }
+            })
+            direction = row[1]
+            station_limit = []
+            output = []
+            output_upper = []
+            output_lower = []
+
+        station_limit.append(float(row[3]))
+        output.append(float(row[5]))
+        output_upper.append(float(row[6]))
+        output_lower.append(float(row[7]))
+
+
+    plotting_data.append({
+        'direction': direction,
+        'data': {
+            'station_limit': station_limit,
+            'output': output,
+            'output_upper': output_upper,
+            'output_lower': output_lower
+        }
+    })
+
+
+for d in plotting_data:
+    plt.title(d['direction'])
+    x = d['data']['station_limit']
+    y = d['data']['output']
+    y_lower = d['data']['output_lower']
+    y_upper = d['data']['output_upper']
+    plt.ylabel('Risk Metrics')
+    plt.xlabel('Station Limit')
+
+    plt.plot(x,y, marker='x')
+    plt.scatter(x,y_upper, marker='_')
+    plt.scatter(x,y_lower, marker='_')
+    plt.xticks(np.arange(min(x), max(x), 10))
+    plt.yticks(np.arange(min(y_lower), max(y))) # TODO: Determine Y ticks
+
+    plt.show()
+
+#
+# Plot 3
+#
+
+plotting_data = []
+
+with open('./data/Results-More-Cars.csv') as f:
+    csv_reader = csv.reader(f, delimiter=',')
+    header = next(csv_reader)
+    data = list(csv_reader)
+
+    direction = data[0][1]
+
+    cars = []
+    output = []
+    output_upper = []
+    output_lower = []
+
+    for row in data:
+        # New set of direction, push current direction data into plotting data
+        # print(f'{direction} - {row[1]}')
+        if direction != row[1]:
+            plotting_data.append({
+                'direction': direction,
+                'data': {
+                    'cars': cars,
+                    'output': output,
+                    'output_upper': output_upper,
+                    'output_lower': output_lower
+                }
+            })
+            direction = row[1]
+            cars = []
+            output = []
+            output_upper = []
+            output_lower = []
+
+        cars.append(float(row[3]))
+        output.append(float(row[6]))
+        output_upper.append(float(row[7]))
+        output_lower.append(float(row[8]))
+
+
+    plotting_data.append({
+        'direction': direction,
+        'data': {
+            'cars': cars,
+            'output': output,
+            'output_upper': output_upper,
+            'output_lower': output_lower
+        }
+    })
+
+
+for d in plotting_data:
+    plt.title(d['direction'])
+    x = d['data']['cars']
+    y = d['data']['output']
+    y_lower = d['data']['output_lower']
+    y_upper = d['data']['output_upper']
+    plt.ylabel('Risk Metrics')
+    plt.xlabel('Station Limit')
+
+    plt.plot(x,y, marker='x')
+    plt.scatter(x,y_upper, marker='_')
+    plt.scatter(x,y_lower, marker='_')
+    plt.xticks(np.arange(min(x), max(x), 1))
+    plt.yticks(np.arange(min(y_lower), max(y))) # TODO: Determine Y ticks
+
+    plt.show()
+
+# TODO: Plot for Station Limit and More Cars
+# TODO: Parameterize script to allow for plotting of different columns?
